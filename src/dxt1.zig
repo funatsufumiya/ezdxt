@@ -139,6 +139,43 @@ pub fn decodeImage(
     }
 }
 
+pub fn decodeImageBgra(
+    compressed: []const u8,
+    width: u16, 
+    height: u16,
+    output: []u32,
+) void {
+    std.debug.assert(compressed.len == (@as(u32, width) * height)/2);
+    std.debug.assert(output.len == @as(u32, width) * height);
+
+    const nchunks_x = width / 4;
+    const nchunks_y = height / 4;
+
+    var chunk_y: u8 = 0;
+    while (chunk_y < nchunks_y) : (chunk_y += 1) {
+        var chunk_x: u8 = 0;
+        while (chunk_x < nchunks_x) : (chunk_x += 1) {
+            const chunk_idx = chunk_y * nchunks_x + chunk_x;
+            const chunk_data = compressed[chunk_idx * 8..][0..8];
+
+            var y: u2 = 0;
+            while (y < 4) : (y += 1) {
+                var x: u2 = 0;
+                while (x < 4) : (x += 1) {
+                    const pixel = getPixelChunk(chunk_data, x, y);
+                    const out_idx = @as(u32, chunk_y * 4 + y) * width + (chunk_x * 4 + x);
+                    // Convert RGBA to BGRA u32
+                    const r = @as(u32, @intFromFloat(pixel.r * 255.0)) & 0xFF;
+                    const g = @as(u32, @intFromFloat(pixel.g * 255.0)) & 0xFF;
+                    const b = @as(u32, @intFromFloat(pixel.b * 255.0)) & 0xFF;
+                    const a = @as(u32, @intFromFloat(pixel.a * 255.0)) & 0xFF;
+                    output[out_idx] = (b) | (g << 8) | (r << 16) | (a << 24);
+                }
+            }
+        }
+    }
+}
+
 fn codeToColor(code: u2, col0: u16, col1: u16) Rgba {
     const col0_rgb = Rgb565.fromInt(col0);
     const col1_rgb = Rgb565.fromInt(col1);
